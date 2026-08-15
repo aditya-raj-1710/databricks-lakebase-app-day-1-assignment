@@ -44,11 +44,19 @@ def get_engine():
 
 
 def run_query(sql: str, params: tuple | dict | None = None) -> list[dict]:
-    """Run a read query against Lakebase and return rows as list[dict]."""
+    """Run a query against Lakebase and return rows as list[dict].
+
+    Also used for INSERT/UPDATE ... RETURNING statements (e.g. creating a
+    ticket and getting its new id back), so this commits the transaction
+    before returning - otherwise those writes are silently rolled back when
+    the connection closes, even though RETURNING already handed back a row.
+    """
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(sql, params)
-            return cur.fetchall()
+            rows = cur.fetchall()
+            conn.commit()
+            return rows
 
 
 def run_write(sql: str, params: tuple | dict | None = None) -> int:
